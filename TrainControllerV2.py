@@ -6,6 +6,8 @@ from ev3dev2.sensor.lego import ColorSensor, TouchSensor  # noqa
 from ev3dev2.button import Button  # noqa
 import time
 from PIL import Image  # noqa
+import threading
+import select
 
 ip = "192.168.1.185"
 port = 9600
@@ -21,8 +23,6 @@ brklocmin = 0
 brklocmax = 0
 rev = 0
 sand = 0
-#train = 0
-#data = 0b0
 
 config = 0
 freq = 0
@@ -37,9 +37,9 @@ sock = socket.socket()
 display = Display()
 but = Button()
 revsen = ColorSensor()
-thrmot = MediumMotor(OUTPUT_B) #-4 -- 85
-brklocmot = LargeMotor(OUTPUT_C) #4 -- 70
-brkmot = LargeMotor(OUTPUT_D) #4 -- -70
+thrmot = MediumMotor(OUTPUT_B)
+brklocmot = LargeMotor(OUTPUT_C)
+brkmot = LargeMotor(OUTPUT_D)
 snd = TouchSensor(INPUT_2)
 revsen.MODE_COL_COLOR # noqa
 
@@ -170,42 +170,40 @@ def getdata(a):
     return None
 
 def screenupdate():
-    global image, imagenew
-    imagenew = sock.recv(256).decode('utf-8')
-    if image != imagenew:
-        print("Image changed", image, imagenew)
-        image = imagenew
-        if image != 'None':
-            try:
-                imagedisplay = Image.open("/home/robot/myproject/{}.bmp".format(image))
-                display.clear()
-                display.update()
-                display.image.paste(imagedisplay, (0, 0))
-                display.update()
-            except FileNotFoundError:
-                print("image not found: {}".format(image))
-            except Exception as e:
-                print("Error occurred: {}".format(e))
+    global image, imagenew, start
+    ready, _, _ = select.select([sock], [], [], 0)
+    while True:
+        if ready:
+            imagenew = sock.recv(256).decode('utf-8')
+        if image != imagenew:
+            print("Image changed from", image, 'to', imagenew)
+            image = imagenew
+            if image != 'None':
+                try:
+                    imagedisplay = Image.open("/home/robot/myproject/{}.bmp".format(image))
+                    display.clear()
+                    display.update()
+                    display.image.paste(imagedisplay, (0, 0))
+                    display.update()
+                except FileNotFoundError:
+                    print("image not found: {}".format(image))
+                except Exception as e:
+                    print("Error occurred: {}".format(e))
+        elif (time.perf_counter() - start) >= 0.5:
+            display.update()
+        time.sleep(0.001)
+
+
+start = time.perf_counter()
 
 calib()
 meetup()
-# while True:
-#     data = getdata('rev') << 7
-#     data = (data | getdata('thr')) << 7
-#     data = (data | getdata('brk')) << 7
-#     data = (data | getdata('brkloc')) << 1
-#     data = data | snd.is_pressed
-#     print('Before converting:', data)
-#     data = data.to_bytes(3, byteorder="big")
-#     print('After converting:', data)
-#     sock.send(data)
-#     print('tic')
-#     time.sleep(0.01)
 
-while True:
-    # if usedisp == 1:
+if usedisp == 1:
+    screen_thread = threading.Thread(target=screenupdate, daemon=True)
+    screen_thread.start()
 
-
+while but.backspace == False:
     if type == 0:
         data = getdata('rev') << 7
         data = (data | getdata('thr')) << 7
