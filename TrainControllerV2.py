@@ -32,6 +32,7 @@ usehost = 0
 usebut = 0
 image = 'None'
 imagenew = 'DE2'
+counter = 5 # how many times sensors will be checked if they give None
 
 sock = socket.socket()
 display = Display()
@@ -54,8 +55,8 @@ def connect():
         sock.connect((ip, port))
         print("Connected")
         return 1
-    except BrokenPipeError or ConnectionResetError:
-        print("Connection broken, press enter to reconnect or backspace to exit")
+    except Exception as e:
+        print("Connection broken, error: {}, press enter to reconnect or backspace to exit".format(e))
         while but.enter == False:
             if but.backspace == True:
                 exit()
@@ -99,11 +100,15 @@ def calib():
     print(thrmax, brkmax, brklocmax)
 
 def getdata(a):
-    global thrmax, brkmax, brklocmax, rev, type
+    global thrmax, brkmax, brklocmax, rev, type, counter
+    c = 0
     b = 0
     if a == 'thr':
         while b == 0 or b == None:
             b = thrmot.position
+            c = c + 1
+            if c == counter:
+                return 101
         if type == 0:
             if b == 0:
                 return 0
@@ -119,6 +124,9 @@ def getdata(a):
     elif a == 'brk':
         while b == 0 or b == None:
             b = brkmot.position
+            c = c + 1
+            if c == counter:
+                return 102
         if type == 0:
             if b == 0:
                 return 0
@@ -134,6 +142,9 @@ def getdata(a):
     elif a == 'brkloc':
         while b == 0 or b == None:
             b = brklocmot.position
+            c = c + 1
+            if c == counter:
+                return 103
         if type == 0:
             if b == 0:
                 return 0
@@ -159,12 +170,15 @@ def getdata(a):
     elif a == 'rev':
         while b == 0 or b == None:
             b = revsen.color
+            c = c + 1
+            if c == counter:
+                return 104
         if b == 3:
-            return 0
+            return 2
         elif b == 1:
             return 1
         elif b == 5:
-            return 2
+            return 0
         else:
             return 1
     return None
@@ -211,5 +225,9 @@ while but.backspace == False:
         data = (data | getdata('brkloc')) << 1
         data = data | snd.is_pressed
         data = data.to_bytes(3, byteorder="big")
-        sock.send(data)
+        try:
+            sock.send(data)
+        except Exception as e:
+            print("Error occurred: {}".format(e))
+            connect()
     time.sleep(round(1 / freq, 4))

@@ -79,4 +79,4 @@ while True:
     thrust = (data >> 15) & 127
     reverse = (data >> 22) & 3
     print(reverse, thrust, brake, brakeloc, sand)
-    time.sleep(0.03)
+    time.sleep(0.001)
