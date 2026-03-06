@@ -8,6 +8,7 @@ import time
 from PIL import Image  # noqa
 import threading
 import select
+import json
 
 ip = "192.168.1.185"
 port = 9600
@@ -24,15 +25,16 @@ brklocmax = 0
 rev = 0
 sand = 0
 
-config = 0
 freq = 0
 type = 0
 usedisp = 0
 usehost = 0
 usebut = 0
+config = {'freq': 0, 'type': 0, 'usedisp': 0, 'usehost': 0, 'usebut': 0}
 image = 'None'
 imagenew = 'DE2'
-counter = 5 # how many times sensors will be checked if they give None
+counter = 5 # how many times sensors will be checked if it gives None
+data = {rev: 0, thr: 0, brk: 0, brkloc: 0, sand: 0}
 
 sock = socket.socket()
 display = Display()
@@ -63,23 +65,22 @@ def connect():
             time.sleep(0.01)
         connect()
 
-def meetup():
-    global freq, type, usedisp, usehost, usebut, config
+def meetup():        # !Call after calib()!
+    global freq, type, usedisp, usehost, usebut, config, maxvalues
     connect()
-    # sock.send(freq.to_bytes()) #приветствие
-    # sock.listen(1)
-    config = sock.recv(3)
-    config = int.from_bytes(config, "big")
+    config = sock.recv(3).decode('utf-8')
+    config = json.loads(config)
     print(config)
-    usebut = config & 1
-    usehost = (config >> 1) & 1
-    usedisp = (config >> 2) & 1
-    type = (config >> 3) & 1
-    freq = config >> 4
-    print(freq, type, usedisp, usehost, usebut)
+    freq = config['freq']
+    usedisp = config['usedisp']
+    usehost = config['usehost']
+    usebut = config['usebut']
+    type = config['type']
+    if config['type'] == 1:
+        sock.send(json.dumps(maxvalues).encode('utf-8'))
 
 def calib():
-    global thrmax, brkmax, brklocmax, type
+    global thrmax, brkmax, brklocmax, type, maxvalues
     print("Calibration, move all sliders down and press enter")
     while but.enter == False:
         time.sleep(0.001)
@@ -96,15 +97,16 @@ def calib():
     brklocmax = brklocmot.position
     while but.enter == True:
         time.sleep(0.001)
+    maxvalues = {'thrmax': thrmax, 'brkmax': brkmax, 'brklocmax': brklocmax}
     print("Calibration done")
     print(thrmax, brkmax, brklocmax)
 
 def getdata(a):
     global thrmax, brkmax, brklocmax, rev, type, counter
     c = 0
-    b = 0
+    b = None
     if a == 'thr':
-        while b == 0 or b == None:
+        while b == None:
             b = thrmot.position
             c = c + 1
             if c == counter:
@@ -122,7 +124,7 @@ def getdata(a):
         else:
             return b
     elif a == 'brk':
-        while b == 0 or b == None:
+        while b == None:
             b = brkmot.position
             c = c + 1
             if c == counter:
@@ -140,7 +142,7 @@ def getdata(a):
         else:
             return b
     elif a == 'brkloc':
-        while b == 0 or b == None:
+        while b == None:
             b = brklocmot.position
             c = c + 1
             if c == counter:
@@ -168,7 +170,7 @@ def getdata(a):
         print(b)
         return b
     elif a == 'rev':
-        while b == 0 or b == None:
+        while b == None:
             b = revsen.color
             c = c + 1
             if c == counter:
@@ -180,7 +182,81 @@ def getdata(a):
         elif b == 5:
             return 0
         else:
-            return 1
+            return 4
+    elif a == 'all':
+        if type == 1:
+            while b == None:
+                b = thrmot.position
+                c = c + 1
+                if c == counter:
+                    b = 101
+                    c = 0
+            thr = b
+            b = None
+            while b == None:
+                b = brkmot.position
+                c = c + 1
+                if c == counter:
+                    b = 102
+                    c = 0
+            brk = b
+            b = None
+            while b == None:
+                b = brklocmot.position
+                c = c + 1
+                if c == counter:
+                    b = 103
+                    c = 0
+            brkloc = b
+            b = None
+            while b == None:
+                b = revsen.color
+                c = c + 1
+                if c == counter:
+                    b = 104
+                    c = 0
+            return {'thr': thr,'brk': brk,'brkloc': brkloc,'rev': b, 'sand': snd.is_pressed}
+        else:
+            while b == None:
+                b = thrmot.position
+                c = c + 1
+                if c == counter:
+                    b = 101
+                    c = 0
+            thr = round((b / thrmax) * 100)
+            b = None
+            while b == None:
+                b = brkmot.position
+                c = c + 1
+                if c == counter:
+                    b = 102
+                    c = 0
+            brk = round((b / brkmax) * 100)
+            b = None
+            while b == None:
+                b = brklocmot.position
+                c = c + 1
+                if c == counter:
+                    b = 103
+                    c = 0
+            brkloc = round((b / brklocmax) * 100)
+            b = None
+            while b == None:
+                b = revsen.color
+                c = c + 1
+                if c == counter:
+                    b = 104
+                    c = 0
+            if b == 3:
+                b = 2
+            elif b == 1:
+                b = 1
+            elif b == 5:
+                b = 0
+            else:
+                b = 4
+            return {'thr': thr,'brk': brk,'brkloc': brkloc,'rev': b, 'sand': snd.is_pressed}
+    print('getdata: Wrong argument')
     return None
 
 def screenupdate():
@@ -218,16 +294,10 @@ if usedisp == 1:
     screen_thread.start()
 
 while but.backspace == False:
-    if type == 0:
-        data = getdata('rev') << 7
-        data = (data | getdata('thr')) << 7
-        data = (data | getdata('brk')) << 7
-        data = (data | getdata('brkloc')) << 1
-        data = data | snd.is_pressed
-        data = data.to_bytes(3, byteorder="big")
-        try:
-            sock.send(data)
-        except Exception as e:
-            print("Error occurred: {}".format(e))
-            connect()
+    data = json.dumps(getdata('all'))
+    try:
+        sock.send(data.encode('utf-8'))
+    except Exception as e:
+        print("Error occurred: {}".format(e))
+        connect()
     time.sleep(round(1 / freq, 4))
