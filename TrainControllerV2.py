@@ -59,6 +59,7 @@ def connect():
         return 1
     except Exception as e:
         print("Connection broken, error: {}, press enter to reconnect or backspace to exit".format(e))
+        # sock.close()
         while but.enter == False:
             if but.backspace == True:
                 exit()
@@ -68,7 +69,9 @@ def connect():
 def meetup():        # !Call after calib()!
     global freq, type, usedisp, usehost, usebut, config, maxvalues
     connect()
-    config = sock.recv(3).decode('utf-8')
+    config = sock.recv(1024)
+    config = config.decode('utf-8')
+    print(config)
     config = json.loads(config)
     print(config)
     freq = config['freq']
@@ -78,6 +81,7 @@ def meetup():        # !Call after calib()!
     type = config['type']
     if config['type'] == 1:
         sock.send(json.dumps(maxvalues).encode('utf-8'))
+    sock.send(bytes('ready', encoding='utf-8'))
 
 def calib():
     global thrmax, brkmax, brklocmax, type, maxvalues
@@ -261,26 +265,28 @@ def getdata(a):
 
 def screenupdate():
     global image, imagenew, start
-    ready, _, _ = select.select([sock], [], [], 0)
     while True:
+        ready, _, _ = select.select([sock], [], [], 0)
         if ready:
             imagenew = sock.recv(256).decode('utf-8')
-        if image != imagenew:
-            print("Image changed from", image, 'to', imagenew)
-            image = imagenew
-            if image != 'None':
-                try:
-                    imagedisplay = Image.open("/home/robot/myproject/{}.bmp".format(image))
-                    display.clear()
-                    display.update()
-                    display.image.paste(imagedisplay, (0, 0))
-                    display.update()
-                except FileNotFoundError:
-                    print("image not found: {}".format(image))
-                except Exception as e:
-                    print("Error occurred: {}".format(e))
+            if image != imagenew:
+                print("Image changed from", image, 'to', imagenew)
+                image = imagenew
+                if image != 'None':
+                    try:
+                        imagedisplay = Image.open("/home/robot/myproject/{}.bmp".format(image))
+                        display.clear()
+                        display.update()
+                        display.image.paste(imagedisplay, (0, 0))
+                        display.update()
+                        start = time.perf_counter()
+                    except FileNotFoundError:
+                        print("image not found: {}".format(image))
+                    except Exception as e:
+                        print("Error occurred: {}".format(e))
         elif (time.perf_counter() - start) >= 0.5:
             display.update()
+            start = time.perf_counter()
         time.sleep(0.001)
 
 
@@ -294,9 +300,9 @@ if usedisp == 1:
     screen_thread.start()
 
 while but.backspace == False:
-    data = json.dumps(getdata('all'))
+    data = json.dumps({'thr': getdata('thr'), 'brk': getdata('brk'), 'brkloc': getdata('brkloc'), 'rev': getdata('rev'), 'sand': snd.is_pressed}) + '\n'
     try:
-        sock.send(data.encode('utf-8'))
+        sock.sendall(data.encode('utf-8'))
     except Exception as e:
         print("Error occurred: {}".format(e))
         connect()

@@ -14,8 +14,10 @@ usedisp = 1
 usehost = 1
 usebut = 1
 minvalues = {}
-
 data = 0
+line = 0
+flag = ''
+
 reverse = 0
 thrust = 0
 brake = 0
@@ -23,7 +25,7 @@ brakeloc = 0
 sand = 0
 but = 0
 
-debug = 1
+debug = 0
 
 if debug == True:
     freq = int(input("Frequency in range 0-127"))
@@ -59,9 +61,15 @@ con, addr = sock.accept()
 print("connection: ", con)
 print("client address: ", addr)
 
-con.send(config.encode('utf-8'))
+con.sendall(config.encode('utf-8'))
+
+while flag != 'ready':
+    flag = con.recv(1024).decode('utf-8')
+    print(flag)
+
 if type == 1:
     minvalues = json.loads(con.recv(1024).decode('utf-8'))
+    print("minvalues: ", minvalues)
     while True:
         print('TODO')
         exit()
@@ -72,15 +80,26 @@ else:
                 if len(image) < 256:
                     image = imagenew
                     con.send(bytes(f'{image}', encoding="utf-8"))
+                    print('Sent photo:', image)
                 else:
                     print('Cannot initialize photo - too much symbols')
                     con.send(bytes('None', encoding="utf-8"))
-        data = json.loads(con.recv(1024).decode('utf-8'))
+        data = con.recv(180).decode('utf-8')
         print(data)
-        reverse = data['rev']
-        thrust = data['thr']
-        brake = data['brk']
-        brakeloc = data['brkloc']
-        sand = data['sand']
+        while '\n' in data:
+            line, data = data.split('\n', 1)
+            if not line:
+                continue
+            try:
+                line = json.loads(line)
+                reverse = line['rev']
+                thrust = line['thr']
+                brake = line['brk']
+                brakeloc = line['brkloc']
+                sand = line['sand']
+            except json.decoder.JSONDecodeError as e:
+                print('JSON Decode Error:', e)
+            except Exception as e:
+                print('Error:', e)
         print(reverse, thrust, brake, brakeloc, sand)
         time.sleep(0.001)
