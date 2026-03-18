@@ -3,7 +3,7 @@ import socket
 import time
 import select
 import configparser
-import pynput
+from pynput.keyboard import Key, Controller
 import os
 
 sock = socket.socket()
@@ -17,10 +17,10 @@ usedisp = 1
 usehost = 1
 usebut = 1
 maxvalues = {}
-data = 0
-line = 0
 flag = ''
 clients = 1
+trains = []
+trainscount = 0
 
 thrbutup = ''
 thrbutdown = ''
@@ -32,15 +32,27 @@ revbutup = ''
 revbutdown = ''
 sandbut = ''
 
+thrpos = 0
+brkpos = 0
+brklocpos = 0
+sandpos = 0
+deftrain = 0
+
 reverse = 0
 thrust = 0
 brake = 0
 brakeloc = 0
 sand = 0
 but = 0
+selected = 'DE2'
+butrev = 0
+butthr = 0
+butbrk = 0
+butbrkloc = 0
+butsand = 0
 
+keyboard = Controller()
 config = configparser.ConfigParser()
-debug = 0
 
 def sentphoto():
     global image, imagenew
@@ -57,31 +69,33 @@ def sentphoto():
                 return 1
 
 def getinfo():
-    global data, line, flag, reverse, thrust, brake, brakeloc, sand
+    global data, flag, reverse, thrust, brake, brakeloc, sand
     data = con.recv(180).decode('utf-8')
     print(data)
     while '\n' in data:
         line, data = data.split('\n', 1)
-        if not line:
+        if not data:
             continue
         try:
-            line = json.loads(line)
-            reverse = line['rev']
-            thrust = line['thr']
-            brake = line['brk']
-            brakeloc = line['brkloc']
-            sand = line['sand']
+            data = json.loads(line)
+            reverse = data['rev']
+            thrust = data['thr']
+            brake = data['brk']
+            brakeloc = data['brkloc']
+            sand = data['sand']
         except json.decoder.JSONDecodeError as e:
             print('JSON Decode Error:', e)
         except Exception as e:
             print('Error:', e)
 
 def configsetup():
-    global imagenew, port, freq, type, usedisp, usehost, usebut, clients
-    global thrbutup, thrbutdown, brkbutup, brkbutdown, brklocbutup, brklocbutup, revbutup, revbutdown, sandbut
+    global imagenew, port, freq, type, usedisp, usehost, usebut, clients, trains, trainscount, deftrain
+    global thrbutup, thrbutdown, brkbutup, brkbutdown, brklocbutup, brklocbutdown, revbutup, revbutdown, sandbut
+    global thrpos, brkpos, brklocpos, sandpos
     config.read('config.ini')
     if os.path.exists('config.ini'):
         defgame = config['HOST']['DefaultGame']
+        deftrain = config['LOCOMOTIVES'][f'{defgame}.deftrain']
         port = int(config['NETWORK']['Port'])
         clients = int(config['NETWORK']['ClientsNumber'])
         imagenew = config['EV3']['DefaultImage']
@@ -99,6 +113,11 @@ def configsetup():
         revbutup = config['GAME_BINDS'][f'{defgame}.reverseup']
         revbutdown = config['GAME_BINDS'][f'{defgame}.reversedown']
         sandbut = config['GAME_BINDS'][f'{defgame}.sand']
+        trainscount = config['LOCOMOTIVES'][f'{defgame}.trainscount']
+        thrpos = config['LOCOMOTIVE_BINDS'][f'{defgame}.{deftrain}.thrposnum']
+        brkpos = config['LOCOMOTIVE_BINDS'][f'{defgame}.{deftrain}.brkposnum']
+        brklocpos = config['LOCOMOTIVE_BINDS'][f'{defgame}.{deftrain}.brklocposnum']
+        sandpos = config['LOCOMOTIVE_BINDS'][f'{defgame}.{deftrain}.sandposnum']
     else:
         print('No config file, creating new')
         defgame = input('Default game name WITHOUT spaces: ')
@@ -126,10 +145,58 @@ def configsetup():
             f'{defgame}.reversedown': input('Button to reverse down: '),
             f'{defgame}.sand': input('Button to enable sand: '),
         }
+        trainscount = input('Number of trains in game to add in config WITHOUT spaces: ')
+        config['LOCOMOTIVES'] = {f'{defgame}.trainscount': trainscount}
+        for i in range(1, int(trainscount) + 1):
+            config.set('LOCOMOTIVES', f'{defgame}.{i}', input(f'Train {i}: '))
+        i = 0
         with open('config.ini', 'w', encoding='utf-8') as configfile:
             config.write(configfile)
         print('Config file created')
+    for i in range(1, int(trainscount) + 1):
+        trains.append(config['LOCOMOTIVES'][f'{defgame}.{i}'])
 
+def butpress():
+    global reverse, thrust, brake, brakeloc, sand, trains, selected
+    global butrev, butbrk, butbrkloc, butsand, butthr
+    global thrbutup, thrbutdown, brkbutup, brkbutdown, brklocbutup, brklocbutdown, revbutup, revbutdown, sandbut
+    if reverse != butrev:
+        if reverse > butrev:
+            for i in range(butrev, int(reverse)):
+                keyboard.tap(revbutup)
+        else:
+            for i in range(reverse, int(butrev)):
+                keyboard.tap(revbutdown)
+        butrev = reverse
+    thrdelta = round((int(thrpos) / 100) * thrust)
+    if butthr != thrdelta:
+        if thrdelta > butthr:
+            for i in range(butthr, thrdelta):
+                keyboard.tap(thrbutup)
+        else:
+            for i in range(thrdelta, butthr):
+                keyboard.tap(thrbutdown)
+        butthr = thrdelta
+    brkdelta = round((int(brkpos) / 100) * brake)
+    if butbrk != brkdelta:
+        if brkdelta > butbrk:
+            for i in range(butbrk, brkdelta):
+                keyboard.tap(brkbutup)
+        else:
+            for i in range(brkdelta, butbrk):
+                keyboard.tap(brkbutdown)
+        butbrk = brkdelta
+    brklocdelta = round((int(brklocpos) / 100) * brakeloc)
+    if butbrkloc != brklocdelta:
+        if brklocdelta > butbrkloc:
+            for i in range(butbrkloc, brklocdelta):
+                keyboard.tap(brklocbutup)
+        else:
+            for i in range(brklocdelta, butbrkloc):
+                keyboard.tap(brklocbutdown)
+        butbrkloc = brklocdelta
+
+configsetup()
 
 sock.bind(("", port))
 sock.listen(clients)
@@ -138,7 +205,6 @@ con, addr = sock.accept()
 print("connection: ", con)
 print("client address: ", addr)
 
-configsetup()
 con.sendall(json.dumps({'freq': freq,'type': type,'usedisp': usedisp,'usehost': usehost,'usebut': usebut}).encode('utf-8'))
 
 while flag != 'ready':
@@ -154,5 +220,7 @@ if type == 1:
 while True:
     sentphoto()
     getinfo()
+    butpress()
     print(reverse, thrust, brake, brakeloc, sand)
     time.sleep(0.001)
+
