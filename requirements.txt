@@ -1,0 +1,13 @@
+pillow~=12.1.1
+pip~=25.0.1
+six~=1.17.0
+pynput~=1.8.1
+keyboard~=0.13.5
+PyMsgBox~=2.0.1
+pyperclip~=1.11.0
+MouseInfo~=0.1.3
+PyScreeze~=1.0.1
+pytweening~=1.2.0
+PyGetWindow~=0.0.9
+PyAutoGUI~=0.9.54
+PyRect~=0.2.0
