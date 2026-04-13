@@ -286,7 +286,7 @@ while flag != 'ready':
     flag = con.recv(32).decode('utf-8')
     print(flag)
 
-# TODO
+
 # if type == 1:
 #     maxvalues = json.loads(con.recv(1024).decode('utf-8'))
 #     print("maxvalues: ", maxvalues)

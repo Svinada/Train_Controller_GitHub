@@ -319,4 +319,4 @@ while but.backspace == False:
     time.sleep(round(1 / freq, 4))
 sock.detach()
 sock.close()
-exit()
+exit() #
