@@ -121,7 +121,7 @@ def configupdate():
     sand_pos = int(config['LOCOMOTIVE_BINDS'][f'{defgame}.{defalt_train}.sandposnum'])
 
 def configsetup():
-    global imagenew, port, freq, type, usedisp, usehost, usebut, clients, trains, trains_count, defalt_train
+    global imagenew, port, freq, type, usedisp, usehost, usebut, clients, trains, trains_count, defalt_train, defgame
     global thrbutup, thrbutdown, brkbutup, brkbutdown, brklocbutup, brklocbutdown, revbutup, revbutdown, sandbutup, sandbutdown
     global thrust_pos, brake_pos, brakeloc_pos, sand_pos
     config.read('config.ini')
