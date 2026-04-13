@@ -301,7 +301,16 @@ if usedisp == 1:
     screen_thread.start()
 
 while but.backspace == False:
-    data = json.dumps({'thr': getdata('thr'), 'brk': getdata('brk'), 'brkloc': getdata('brkloc'), 'rev': getdata('rev'), 'sand': snd.is_pressed}) + '\n'
+    data = json.dumps({'thr': getdata('thr'),
+                       'brk': getdata('brk'),
+                       'brkloc': getdata('brkloc'),
+                       'rev': getdata('rev'),
+                       'sand': snd.is_pressed,
+                       'butleft': but.left,
+                       'butup': but.up,
+                       'butright': but.right,
+                       'butdown': but.down,
+                       'butenter': but.enter}) + '\n'
     try:
         sock.sendall(data.encode('utf-8'))
     except Exception as e:
