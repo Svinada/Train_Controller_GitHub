@@ -5,6 +5,7 @@ import select
 import configparser
 import pyautogui as keyboard # noqa
 import os
+import importlib
 
 from TrainControllerV2 import frequency
 
@@ -18,6 +19,7 @@ but_timeout = 0
 counter = 0
 setup_1 = 0
 setup_2 = 0
+game_profile_selecting_flag = 0
 
 #maybe under comm
 thrust_button_up = ''
@@ -31,7 +33,7 @@ reverse_button_down = ''
 sand_button_up = ''
 sand_button_down = ''
 
-selected = 'DE2'
+# selected_locomotive = 'DE2'
 
 reverse_raw = 0
 thrust_raw = 0
@@ -43,7 +45,7 @@ button_up_raw = 0
 button_right_raw = 0
 button_down_raw = 0
 
-reverse_data = 0 #All ..._data variables provided as a percentage
+reverse_data = 0 #All ..._data and ..._raw variables provided as a percentage (0-100%)
 thrust_data = 0
 brake_data = 0
 brake_locomotive_data = 0
@@ -56,13 +58,16 @@ button_down_data = 0
 config = configparser.ConfigParser()
 sock = socket.socket()
 
-def sentphoto():
+def sentphoto(a = ''):
     global image
     if usedisp == 1:
-        if image != selected:
-            image = selected
+        if image != selected_locomotive:
+            image = selected_locomotive
             con.send(bytes(f'{image}', encoding="utf-8"))
             print('Sent photo:', image)
+            if a != '':
+                con.send(bytes(f'{'\t'+a}', encoding="utf-8"))
+                print('Sent text:', a)
 
 def getinfo():
     global data, ready_flag, reverse_raw, thrust_raw, brake_raw, brake_locomotive_raw, sand_raw, button_left_raw, button_up_raw, button_right_raw, button_down_raw
@@ -91,29 +96,70 @@ def getinfo():
             print('Error:', e, 'JSON data:', '\n' + data)
 
 def configupdate():
-    global default_game, thrust_button_up, thrust_button_down, brake_button_up, brake_button_down, brake_locomotive_button_up, brake_locomotive_button_down, reverse_button_up, reverse_button_down, sand_button_up, sand_button_down
-    global thrust_pos, brake_pos, brakeloc_pos, sand_pos, default_train
-    thrust_button_up = config[f'{default_game}.GAME_BINDS']['thrustup']
-    thrust_button_down = config[f'{default_game}.GAME_BINDS']['thrustdown']
-    brake_button_up = config[f'{default_game}.GAME_BINDS']['trainbrakeup']
-    brake_button_down = config[f'{default_game}.GAME_BINDS']['trainbrakedown']
-    brake_locomotive_button_up = config[f'{default_game}.GAME_BINDS']['locbrakeup']
-    brake_locomotive_button_down = config[f'{default_game}.GAME_BINDS']['locbrakedown']
-    reverse_button_up = config[f'{default_game}.GAME_BINDS']['reverseup']
-    reverse_button_down = config[f'{default_game}.GAME_BINDS']['reversedown']
-    sand_button_up = config[f'{default_game}.GAME_BINDS']['sandup']
-    sand_button_down = config[f'{default_game}.GAME_BINDS']['sanddown']
-    thrust_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{selected}.thrposnum'])
-    brake_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{selected}.brkposnum'])
-    brakeloc_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{selected}.brklocposnum'])
-    sand_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{selected}.sandposnum'])
-    print('selected:', selected, 'brake_pos:', brake_pos,'brakeloc_pos:', brakeloc_pos, 'thrust_pos:', thrust_pos,'sand_pos:', sand_pos)
+    global default_game_name, thrust_button_up, thrust_button_down, brake_button_up, brake_button_down, brake_locomotive_button_up, brake_locomotive_button_down, reverse_button_up, reverse_button_down, sand_button_up, sand_button_down
+    global thrust_pos, brake_pos, brakeloc_pos, sand_pos, selected_locomotive, ButConfig, game_profile_type
+    if game_profile_selecting_flag == 0:
+        if game_profile_type == 0:
+            if os.path.exists(f'game profiles/{default_game_name}'):
+                config.read(f'game profiles/{default_game_name}.ini')
+            else:
+                print('config not found with name', default_game_name)
+                exit('TODO')
+            selected_locomotive = config['LOCOMOTIVES'][str(selected_locomotive_number)]
+            thrust_button_up = config[selected_locomotive]['thrust_button_up']
+            thrust_button_down = config[selected_locomotive]['thrust_button_down']
+            brake_button_up = config[selected_locomotive]['brake_button_up']
+            brake_button_down = config[selected_locomotive]['brake_button_down']
+            brake_locomotive_button_up = config[selected_locomotive]['brake_locomotive_button_up']
+            brake_locomotive_button_down = config[selected_locomotive]['brake_locomotive_button_down']
+            reverse_button_up = config[selected_locomotive]['reverse_button_up']
+            reverse_button_down = config[selected_locomotive]['reverse_button_down']
+            sand_button_up = config[selected_locomotive]['sand_button_up']
+            sand_button_down = config[selected_locomotive]['sand_button_down']
+            thrust_pos = int(config[selected_locomotive]['thrust_position_number'])
+            brake_pos = int(config[selected_locomotive]['brake_position_number'])
+            brakeloc_pos = int(config[selected_locomotive]['brake_locomotive_position_number'])
+            sand_pos = int(config[selected_locomotive]['sand_position_number'])
+        else:
+            print('.py profile running, locomotive changed')
+    else:
+        config.read('config.ini')
+        default_game_name = config['GAME_PROFILES'][f'game_name.{default_game_number}']
+        game_profile_type = config['GAME_PROFILES'][f'game_profile_type.{default_game_number}']
+        if game_profile_type == 0:
+            if os.path.exists(f'game profiles/{default_game_name}'):
+                config.read(f'game profiles/{default_game_name}.ini')
+            else:
+                print('config not found with name', default_game_name)
+                exit('TODO')
+            selected_locomotive = config['LOCOMOTIVES'][str(selected_locomotive_number)]
+            thrust_button_up = config[selected_locomotive]['thrust_button_up']
+            thrust_button_down = config[selected_locomotive]['thrust_button_down']
+            brake_button_up = config[selected_locomotive]['brake_button_up']
+            brake_button_down = config[selected_locomotive]['brake_button_down']
+            brake_locomotive_button_up = config[selected_locomotive]['brake_locomotive_button_up']
+            brake_locomotive_button_down = config[selected_locomotive]['brake_locomotive_button_down']
+            reverse_button_up = config[selected_locomotive]['reverse_button_up']
+            reverse_button_down = config[selected_locomotive]['reverse_button_down']
+            sand_button_up = config[selected_locomotive]['sand_button_up']
+            sand_button_down = config[selected_locomotive]['sand_button_down']
+            thrust_pos = int(config[selected_locomotive]['thrust_position_number'])
+            brake_pos = int(config[selected_locomotive]['brake_position_number'])
+            brakeloc_pos = int(config[selected_locomotive]['brake_locomotive_position_number'])
+            sand_pos = int(config[selected_locomotive]['sand_position_number'])
+        if game_profile_type == 1:
+            ButConfig = importlib.import_module(f'game profiles.{default_game_name}')
+    print('locomotive config updated')
 
 def configsetup():
-    global default_game, port, clients_number, frequency, type, usedisp, game_profile_type
+    global default_game_name, port, clients_number, frequency, type, usedisp, game_profile_type, selected_locomotive, selected_locomotive_number, default_game_number
+    global thrust_button_up, thrust_button_down, brake_button_up, brake_button_down, brake_locomotive_button_up, brake_locomotive_button_down, reverse_button_up, reverse_button_down, sand_button_up, sand_button_down
+    global thrust_pos, brake_pos, brakeloc_pos, sand_pos, locomotives_count, ButConfig
     if os.path.exists('config.ini'):
         config.read('config.ini')
-        default_game = config['HOST']['DefaultGame']
+        default_game_number = config['HOST']['default_game_number']
+        default_game_name = config['GAME_PROFILES'][f'game_name.{default_game_number}']
+        game_profile_type = config['GAME_PROFILES'][f'game_profile_type.{default_game_number}']
         port = int(config['NETWORK']['Port'])
         clients_number = int(config['NETWORK']['ClientsNumber'])
         frequency = int(config['EV3']['Frequency'])
@@ -121,45 +167,60 @@ def configsetup():
         usedisp = int(config['EV3']['UseDisp'])
 
         if os.path.exists('game profiles'):
-            if game_profile_type == 0 and os.path.exists('game profiles/config.ini'):
-
+            if game_profile_type == 0 and os.path.exists(f'game profiles/{default_game_name}.ini'):
+                config.read(f'game profiles/{default_game_name}.ini')
+                locomotives_count = config['LOCOMOTIVES']['locomotives_count']
+                selected_locomotive = config['LOCOMOTIVES']['1']
+                selected_locomotive_number = 1
+                thrust_button_up = config[selected_locomotive]['thrust_button_up']
+                thrust_button_down = config[selected_locomotive]['thrust_button_down']
+                brake_button_up = config[selected_locomotive]['brake_button_up']
+                brake_button_down = config[selected_locomotive]['brake_button_down']
+                brake_locomotive_button_up = config[selected_locomotive]['brake_locomotive_button_up']
+                brake_locomotive_button_down = config[selected_locomotive]['brake_locomotive_button_down']
+                reverse_button_up = config[selected_locomotive]['reverse_button_up']
+                reverse_button_down = config[selected_locomotive]['reverse_button_down']
+                sand_button_up = config[selected_locomotive]['sand_button_up']
+                sand_button_down = config[selected_locomotive]['sand_button_down']
+                thrust_pos = int(config[selected_locomotive]['thrust_position_number'])
+                brake_pos = int(config[selected_locomotive]['brake_position_number'])
+                brakeloc_pos = int(config[selected_locomotive]['brake_locomotive_position_number'])
+                sand_pos = int(config[selected_locomotive]['sand_position_number'])
+            elif game_profile_type == 1 and os.path.exists(f'game profiles/{default_game_name}.py'):
+                ButConfig = importlib.import_module(f'game profiles.{default_game_name}')
+            else:
+                print('config not found with name', default_game_name)
+                exit('TODO')
         else:
             print('directory "game profiles" not found')
-        # thrust_button_up = config[f'{default_game}.GAME_BINDS']['thrustup']
-        # thrust_button_down = config[f'{default_game}.GAME_BINDS']['thrustdown']
-        # brake_button_up = config[f'{default_game}.GAME_BINDS']['trainbrakeup']
-        # brake_button_down = config[f'{default_game}.GAME_BINDS']['trainbrakedown']
-        # brake_locomotive_button_up = config[f'{default_game}.GAME_BINDS']['locbrakeup']
-        # brake_locomotive_button_down = config[f'{default_game}.GAME_BINDS']['locbrakedown']
-        # reverse_button_up = config[f'{default_game}.GAME_BINDS']['reverseup']
-        # reverse_button_down = config[f'{default_game}.GAME_BINDS']['reversedown']
-        # sand_button_up = config[f'{default_game}.GAME_BINDS']['sandup']
-        # sand_button_down = config[f'{default_game}.GAME_BINDS']['sanddown']
-        # trains_count = int(config[f'{default_game}.LOCOMOTIVES']['trainscount'])
-        # thrust_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{default_train}.thrposnum'])
-        # brake_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{default_train}.brkposnum'])
-        # brakeloc_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{default_train}.brklocposnum'])
-        # sand_pos = int(config[f'{default_game}.LOCOMOTIVE_CONFIG'][f'{default_train}.sandposnum'])
+            try:
+                os.mkdir('game profiles')
+                print('create one in script folder, remember to add your .ini/.py file')
+            except Exception as e:
+                print('Cannot create folder:',e)
+            exit('TODO')
     else:
         configcreate()
 
 def configcreate():
-    global default_game, clients_number, port, frequency, game_profiles_counter, game_profile_type
+    global default_game_name, clients_number, port, frequency, game_profiles_counter, game_profile_type, default_game_number
     print('No config file, creating new')
-    default_game = input('Enter default game: ')
+    default_game_number = input('Enter default game number (default 1): ')
     clients_number = int(input('Enter number of clients: '))
     port = int(input('Enter port: '))
     frequency = int(input('Enter frequency: '))
     game_profiles_counter = int(input('Enter number of game profiles: '))
-    try:
-        if os.path.exists('game profiles'):
-            print('folder game profiles already exists')
-        os.mkdir('game profiles')
-        print('created "game profiles" folder in script folder')
-    except Exception as e:
-        print('Cannot create folder:', e)
+    if not os.path.exists('game profiles'):
+        try:
+            os.mkdir('game profiles')
+            print('created "game profiles" folder in script folder')
+        except Exception as e:
+            print('Cannot create folder:', e)
+            exit()
+    else:
+        print('"game profiles" folder already exists')
     config['HOST'] = {
-        'default_game': default_game,
+        'default_game_number': default_game_number,
     }
     config['NETWORK'] = {
         'port': str(port),
@@ -176,14 +237,18 @@ def configcreate():
             f'game_name.{i}': input(f'Enter game name {i}: '),
             f'game_profile_type.{i}': input(f'Enter game profile type {i}: '),
         }
-    game_profile_type = config['GAME_PROFILES']['game_profile_type.1']
-    with open('config.ini', 'w') as configfile:
-        config.write(configfile)
-    print('Config created, remember to config game profile before starting program')
+    default_game_name = config['GAME_PROFILES'][f'game_name.{default_game_number}']
+    game_profile_type = config['GAME_PROFILES'][f'game_profile_type.{default_game_number}']
+    try:
+        with open('config.ini', 'w') as configfile:
+            config.write(configfile)
+        print('Config created, remember to config game profile before starting program')
+    except Exception as e:
+        print('Cannot create config file:', e)
+    exit('TODO')
 
 def butpress():
-    global trains, selected, sand_counter, but_timeout
-    global reverse_data, brake_data, brake_locomotive_data, sand_data, thrust_data, button_left_data, button_up_data, button_right_data, button_down_data
+    global sand_counter, but_timeout, reverse_data, brake_data, brake_locomotive_data, sand_data, thrust_data
 
     if reverse_raw != reverse_data:
         if reverse_raw > reverse_data:
@@ -239,23 +304,47 @@ def butpress():
             else:
                 keyboard.press(sand_button_up)
 
+def selecting():
+    global button_right_data, button_left_data, button_up_data, default_game_number, selected_locomotive_number, game_profile_selecting_flag
     if button_right_raw != button_right_data:
         button_right_data = button_right_raw
         if button_right_data == 0:
-            if len(trains) < trains.index(selected) + 2:
-                selected = trains[0]
+            if game_profile_selecting_flag:
+                if default_game_number == game_profiles_counter:
+                    default_game_number = 1
+                else:
+                    default_game_number += 1
+                selected_locomotive_number = 1
             else:
-                selected = trains[trains.index(selected) + 1]
+                if selected_locomotive_number == locomotives_count:
+                    selected_locomotive_number = 1
+                else:
+                    selected_locomotive_number += 1
             configupdate()
 
     if button_left_raw != button_left_data:
         button_left_data = button_left_raw
         if button_left_data == 0:
-            if trains.index(selected) == 0:
-                selected = trains[len(trains) - 1]
+            if game_profile_selecting_flag:
+                if default_game_number == 1:
+                    default_game_number = game_profiles_counter
+                else:
+                    default_game_number -= 1
+                selected_locomotive_number = 1
             else:
-                selected = trains[trains.index(selected) - 1]
+                if selected_locomotive_number == 1:
+                    selected_locomotive_number = locomotives_count
+                else:
+                    selected_locomotive_number -= 1
             configupdate()
+
+    if button_up_raw != button_up_data:
+        button_up_data = button_up_raw
+        if button_up_data == 0:
+            if game_profile_selecting_flag == 0:
+                game_profile_selecting_flag = 1
+            else:
+                game_profile_selecting_flag = 0
 
 configsetup()
 
@@ -286,7 +375,11 @@ while True:
             but_timeout = 0
     sentphoto()
     getinfo()
-    butpress()
+    if game_profile_type == 1:
+        ButConfig.butpress()
+    else:
+        butpress()
+        selecting()
     # print(reverse_raw, thrust_raw, brake_raw, brake_locomotive_raw, sand_raw)
     time.sleep(0.01)
 
