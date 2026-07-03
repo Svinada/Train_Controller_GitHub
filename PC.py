@@ -123,7 +123,7 @@ def configupdate():
     else:
         config.read('config.ini')
         default_game_name = config['GAME_PROFILES'][f'game_name.{default_game_number}']
-        game_profile_type = config['GAME_PROFILES'][f'game_profile_type.{default_game_number}']
+        game_profile_type = int(config['GAME_PROFILES'][f'game_profile_type.{default_game_number}'])
         if game_profile_type == 0:
             if os.path.exists(f'game profiles/{default_game_name}'):
                 config.read(f'game profiles/{default_game_name}.ini')
@@ -201,7 +201,7 @@ def configsetup():
 def configcreate():
     global default_game_name, clients_number, port, frequency, game_profiles_counter, game_profile_type, default_game_number
     print('No config file, creating new')
-    default_game_number = input('Enter default game number (default 1): ')
+    default_game_number = int(input('Enter default game number (default 1): '))
     clients_number = int(input('Enter number of clients: '))
     port = int(input('Enter port: '))
     frequency = int(input('Enter frequency: '))
@@ -216,7 +216,7 @@ def configcreate():
     else:
         print('"game profiles" folder already exists')
     config['HOST'] = {
-        'default_game_number': default_game_number,
+        'default_game_number': str(default_game_number),
     }
     config['NETWORK'] = {
         'port': str(port),
@@ -239,7 +239,7 @@ def configcreate():
         print('Cannot create config file:', e)
     config.read('config.ini')
     default_game_name = config['GAME_PROFILES'][f'game_name.{default_game_number}']
-    game_profile_type = config['GAME_PROFILES'][f'game_profile_type.{default_game_number}']
+    game_profile_type = int(config['GAME_PROFILES'][f'game_profile_type.{default_game_number}'])
     exit('TODO')
 
 def butpress():
