@@ -368,7 +368,10 @@ while True:
         if counter >= 5:
             counter = 0
             but_timeout = 0
-    sentphoto()
+    if game_profile_selecting_flag == 0:
+        sentphoto()
+    else:
+        sentphoto(default_game_name)
     getinfo()
     if game_profile_type == 1:
         ButConfig.butpress()

@@ -199,19 +199,25 @@ def screenupdate():
             if ready:
                 image_new = Socket.recv(256).decode('utf-8')
                 if image != image_new:
-                    print("Image changed from", image, 'to', image_new)
-                    image = image_new
-                    if image != 'None':
-                        try:
-                            imagedisplay = Image.open("/home/robot/TrainControllerV2/Pictures/{}.bmp".format(image))
-                            Display.clear()
-                            Display.update()
-                            Display.image.paste(imagedisplay, (0, 0))
-                            Display.update()
-                        except FileNotFoundError:
-                            print("image not found: {}".format(image))
-                        except Exception as e:
-                            print("Error occurred: {}".format(e))
+                    if '\t' in image_new:
+                        print('Text', image_new)
+                        Display.clear()
+                        Display.update()
+                        Display.text_pixels(image_new, True, 89, 64)
+                    else:
+                        print("Image changed from", image, 'to', image_new)
+                        image = image_new
+                        if image != 'None':
+                            try:
+                                imagedisplay = Image.open("/home/robot/TrainControllerV2/Pictures/{}.bmp".format(image))
+                                Display.clear()
+                                Display.update()
+                                Display.image.paste(imagedisplay, (0, 0))
+                                Display.update()
+                            except FileNotFoundError:
+                                print("image not found: {}".format(image))
+                            except Exception as e:
+                                print("Error occurred: {}".format(e))
         time.sleep(0.5)
 
 
@@ -243,4 +249,4 @@ while not Button.backspace:
     time.sleep(round(1 / frequency, 4))
 Socket.detach()
 Socket.close()
-exit() #
+exit('Exit via backspace') #
