@@ -3,7 +3,7 @@ import socket
 import time
 import select
 import configparser
-import pyautogui as keyboard # noqa
+from pynput.keyboard import Key, Controller
 import os
 import importlib
 
@@ -18,6 +18,7 @@ counter = 0
 setup_1 = 0
 setup_2 = 0
 game_profile_selecting_flag = 0
+usedisp = 1
 
 #maybe under comm
 thrust_button_up = ''
@@ -43,8 +44,8 @@ button_up_raw = 0
 button_right_raw = 0
 button_down_raw = 0
 
-reverse_data = 0 #All ..._data and ..._raw variables provided as a percentage (0-100%)
-thrust_data = 0
+reverse_data = 0 #All ..._raw variables provided as a percentage (0-100%)
+thrust_data = 0 #All ..._data variables provided as a current position
 brake_data = 0
 brake_locomotive_data = 0
 sand_data = 0
@@ -55,15 +56,19 @@ button_down_data = 0
 
 config = configparser.ConfigParser()
 sock = socket.socket()
+keyboard = Controller()
 
 def sentphoto(a = ''):
     global image
     if usedisp == 1:
-        if image != selected_locomotive:
-            image = selected_locomotive
-            con.send(bytes(f'{image}', encoding="utf-8"))
-            print('Sent photo:', image)
-            if a != '':
+        if game_profile_selecting_flag == 0:
+            if image != selected_locomotive:
+                image = selected_locomotive
+                con.send(bytes(f'{image}', encoding="utf-8"))
+                print('Sent photo:', image)
+        else:
+            if image != a:
+                image = a
                 con.send(bytes(f'{'\t'+a}', encoding="utf-8"))
                 print('Sent text:', a)
 
@@ -95,10 +100,10 @@ def getinfo():
 
 def configupdate():
     global default_game_name, thrust_button_up, thrust_button_down, brake_button_up, brake_button_down, brake_locomotive_button_up, brake_locomotive_button_down, reverse_button_up, reverse_button_down, sand_button_up, sand_button_down
-    global thrust_pos, brake_pos, brakeloc_pos, sand_pos, selected_locomotive, ButConfig, game_profile_type
+    global thrust_pos, brake_pos, brakeloc_pos, sand_pos, selected_locomotive, ButConfig, game_profile_type, locomotives_count, selected_locomotive_number
     if game_profile_selecting_flag == 0:
         if game_profile_type == 0:
-            if os.path.exists(f'game profiles/{default_game_name}'):
+            if os.path.exists(f'game profiles/{default_game_name}.ini'):
                 config.read(f'game profiles/{default_game_name}.ini')
             else:
                 print('config not found with name', default_game_name)
@@ -125,11 +130,13 @@ def configupdate():
         default_game_name = config['GAME_PROFILES'][f'game_name.{default_game_number}']
         game_profile_type = int(config['GAME_PROFILES'][f'game_profile_type.{default_game_number}'])
         if game_profile_type == 0:
-            if os.path.exists(f'game profiles/{default_game_name}'):
+            if os.path.exists(f'game profiles/{default_game_name}.ini'):
                 config.read(f'game profiles/{default_game_name}.ini')
             else:
                 print('config not found with name', default_game_name)
                 exit('TODO')
+            locomotives_count = int(config['LOCOMOTIVES']['locomotives_count'])
+            selected_locomotive_number = 1
             selected_locomotive = config['LOCOMOTIVES'][str(selected_locomotive_number)]
             thrust_button_up = config[selected_locomotive]['thrust_button_up']
             thrust_button_down = config[selected_locomotive]['thrust_button_down']
@@ -147,12 +154,14 @@ def configupdate():
             sand_pos = int(config[selected_locomotive]['sand_position_number'])
         if game_profile_type == 1:
             ButConfig = importlib.import_module(f'game profiles.{default_game_name}')
+            locomotives_count = ButConfig.locomotives_count
+            selected_locomotive_number = ButConfig.selected_locomotive_number
     print('locomotive config updated')
 
 def configsetup():
-    global default_game_name, port, clients_number, frequency, type, usedisp, game_profile_type, selected_locomotive, selected_locomotive_number, default_game_number
+    global default_game_name, port, clients_number, frequency, game_profile_type, selected_locomotive, selected_locomotive_number, default_game_number
     global thrust_button_up, thrust_button_down, brake_button_up, brake_button_down, brake_locomotive_button_up, brake_locomotive_button_down, reverse_button_up, reverse_button_down, sand_button_up, sand_button_down
-    global thrust_pos, brake_pos, brakeloc_pos, sand_pos, locomotives_count, ButConfig
+    global thrust_pos, brake_pos, brakeloc_pos, sand_pos, locomotives_count, ButConfig, game_profiles_counter
     if os.path.exists('config.ini'):
         config.read('config.ini')
         default_game_number = int(config['HOST']['default_game_number'])
@@ -165,7 +174,8 @@ def configsetup():
         if os.path.exists('game profiles'):
             if game_profile_type == 0 and os.path.exists(f'game profiles/{default_game_name}.ini'):
                 config.read(f'game profiles/{default_game_name}.ini')
-                locomotives_count = config['LOCOMOTIVES']['locomotives_count']
+                game_profiles_counter = int(config['GAME_PROFILES']['game_profiles_counter'])
+                locomotives_count = int(config['LOCOMOTIVES']['locomotives_count'])
                 selected_locomotive = config['LOCOMOTIVES']['1']
                 selected_locomotive_number = 1
                 thrust_button_up = config[selected_locomotive]['thrust_button_up']
@@ -249,10 +259,12 @@ def butpress():
         if reverse_raw > reverse_data:
             for i in range(reverse_data, reverse_raw):
                 keyboard.press(reverse_button_up)
+                keyboard.release(reverse_button_up)
                 time.sleep(but_press_delay)
         else:
             for i in range(reverse_raw, reverse_data):
                 keyboard.press(reverse_button_down)
+                keyboard.release(reverse_button_down)
                 time.sleep(but_press_delay)
         reverse_data = reverse_raw
 
@@ -262,9 +274,11 @@ def butpress():
             if thrdelta > thrust_data:
                 thrust_data += 1
                 keyboard.press(thrust_button_up)
+                keyboard.release(thrust_button_up)
             else:
                 thrust_data -= 1
                 keyboard.press(thrust_button_down)
+                keyboard.release(thrust_button_down)
             but_timeout = 1
 
         brkdelta = round((brake_pos / 100) * brake_raw)
@@ -272,9 +286,11 @@ def butpress():
             if brkdelta > brake_data:
                 brake_data += 1
                 keyboard.press(brake_button_up)
+                keyboard.release(brake_button_up)
             else:
                 brake_data -= 1
                 keyboard.press(brake_button_down)
+                keyboard.release(brake_button_down)
             but_timeout = 1
 
         brklocdelta = round((brakeloc_pos / 100) * brake_locomotive_raw)
@@ -282,9 +298,11 @@ def butpress():
             if brklocdelta > brake_locomotive_data:
                 brake_locomotive_data += 1
                 keyboard.press(brake_locomotive_button_up)
+                keyboard.release(brake_locomotive_button_up)
             else:
                 brake_locomotive_data -= 1
                 keyboard.press(brake_locomotive_button_down)
+                keyboard.release(brake_locomotive_button_down)
             but_timeout = 1
 
     if sand_raw != sand_data:
@@ -295,9 +313,11 @@ def butpress():
                 sand_counter = 0
                 for i in range(sand_pos): #That's bad I know
                     keyboard.press(sand_button_down)
+                    keyboard.release(sand_button_down)
                     time.sleep(but_press_delay)
             else:
                 keyboard.press(sand_button_up)
+                keyboard.release(sand_button_up)
 
 def selecting():
     global button_right_data, button_left_data, button_up_data, default_game_number, selected_locomotive_number, game_profile_selecting_flag
@@ -350,7 +370,7 @@ con, addr = sock.accept()
 print("connection: ", con)
 print("client address: ", addr)
 
-con.sendall(json.dumps({'freq': frequency,'type': type,'usedisp': usedisp,'usehost': setup_1,'usebut': setup_2}).encode('utf-8'))
+con.sendall(json.dumps({'freq': frequency,'type': 0,'usedisp': usedisp,'usehost': setup_1,'usebut': setup_2}).encode('utf-8'))
 
 while ready_flag != 'ready':
     ready_flag = con.recv(32).decode('utf-8')
@@ -374,7 +394,15 @@ while True:
         sentphoto(default_game_name)
     getinfo()
     if game_profile_type == 1:
-        ButConfig.butpress()
+        ButConfig.butpress(reverse_raw, thrust_raw, brake_raw, brake_locomotive_raw, sand_raw, but_timeout)
+        but_timeout = ButConfig.but_timeout
+        selected_locomotive = ButConfig.selected_locomotive
+        reverse_data = ButConfig.reverse_data
+        brake_data = ButConfig.brake_data
+        brake_locomotive_data = ButConfig.brake_locomotive_data
+        sand_data = ButConfig.sand_data
+        thrust_data = ButConfig.thrust_data
+        selecting()
     else:
         butpress()
         selecting()
