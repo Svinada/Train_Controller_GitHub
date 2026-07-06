@@ -1,5 +1,6 @@
 import socket
 from ev3dev2.display import Display # noqa
+import ev3dev2.fonts as fonts # noqa
 from ev3dev2.sensor import INPUT_2  # noqa
 from ev3dev2.motor import LargeMotor, OUTPUT_D, OUTPUT_B, OUTPUT_C, MediumMotor  # noqa
 from ev3dev2.sensor.lego import ColorSensor, TouchSensor  # noqa
@@ -200,10 +201,10 @@ def screenupdate():
                 image_new = Socket.recv(256).decode('utf-8')
                 if image != image_new:
                     if '\t' in image_new:
-                        print('Text', image_new)
+                        image = image_new
+                        print('Text', image)
                         Display.clear()
-                        Display.update()
-                        Display.text_pixels(image_new, True, 89, 64)
+                        Display.text_pixels(image, True, 0, 16, 'black', font=fonts.load('luBS24'))
                     else:
                         print("Image changed from", image, 'to', image_new)
                         image = image_new
@@ -211,11 +212,11 @@ def screenupdate():
                             try:
                                 imagedisplay = Image.open("/home/robot/TrainControllerV2/Pictures/{}.bmp".format(image))
                                 Display.clear()
-                                Display.update()
                                 Display.image.paste(imagedisplay, (0, 0))
-                                Display.update()
                             except FileNotFoundError:
-                                print("image not found: {}".format(image))
+                                print("image with name not found and will show as a text: ", image)
+                                Display.clear()
+                                Display.text_pixels(image, True, 0, 16, 'black', font=fonts.load('luBS24'))
                             except Exception as e:
                                 print("Error occurred: {}".format(e))
         time.sleep(0.5)
