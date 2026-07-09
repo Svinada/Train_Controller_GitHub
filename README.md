@@ -58,6 +58,8 @@ Just download latest release with name `PCdriver_and_default_configs.zip` [from 
 ### Without default configs
 Download `PCdriver.exe` (it will create `config.ini` and folder `game_profiles` in the folder where it was launched) [from here](https://github.com/Svinada/Ev3Locomotive/releases).
 
+### If script doesn't work, try to run it as an administrator
+
 # Creating config
 When script can't find `config.ini`, folder `game_profiles` or game profile in that folder, it will create necessary file.
 Example `config.ini` looks like:
