@@ -48,7 +48,7 @@ def connect():
     if ip == "":
         ip = input("Enter IP: ")
     if port == 0:
-        port = input("Enter port: ")
+        port = int(input("Enter port: "))
     try:
         print("Trying to connect")
         Socket.connect((ip, port))
