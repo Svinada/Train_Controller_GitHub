@@ -1,5 +1,5 @@
 # EV3Locomotive
-![Photo of train controller](/Pictures\Photo1.jpg)
+![Photo of train controller](/Pictures/Photo1.jpg)
 
 # Video
 ![video on youtube]()
