@@ -11,8 +11,8 @@ import threading
 import select
 import json
 
-ip = "192.168.1.185"
-port = 9600
+ip = ""
+port = 0
 
 thrust = 0
 thrust_maximum = 0
@@ -63,7 +63,6 @@ def connect():
             time.sleep(0.01)
         connect()
         return None
-
 
 def meetup():        # !Call after calib()!
     global frequency, data_type, use_display, setup_1, setup_2, config, maximum_values
