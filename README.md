@@ -122,6 +122,7 @@ but_timeout_timer = 2
 but_timeout_flag = 0
 
 def butpress(reverse_raw=0, thrust_raw=0, brake_raw=0, brake_locomotive_raw=0, sand_raw=0, but_timeout_raw=0, selected_locomotive_number=1):
+    # your code here...
 ```
 Example `Metrostroi.py` looks like:
 ```
