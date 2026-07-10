@@ -65,17 +65,17 @@ When script can't find `config.ini`, folder `game_profiles` or game profile in t
 Example `config.ini` looks like:
 ```
 [HOST]
-default_game_number = 1 <-- Number of config which will load at startup
+default_game_number = 1 ; <-- Number of config which will load at startup
 
 [NETWORK]
-port = 9600 <-- port which will use by client (ev3) for connecting and data exchange
-clients_number = 1 <-- beta variable, it's better not to change
+port = 9600 ; <-- port which will use by client (ev3) for connecting and data exchange
+clients_number = 1 ; <-- beta variable, it's better not to change
 
 [EV3]
-frequency = 30 <-- sensor refresh rate
+frequency = 30 ; <-- sensor refresh rate
 
 [GAME_PROFILES]
-game_profiles_counter = 2 <-- number of game profiles
+game_profiles_counter = 2 ; <-- number of game profiles
 game_name.1 = Derail Valley
 game_profile_type.1 = 0
 game_name.2 = Metrostroi
@@ -98,7 +98,7 @@ locomotives_count = 1
 1 = DE2
 
 [DE2]
-but_timeout_timer = 2 <-- delay between keystrokes, abstract value, I couldn't calculate the ratio to seconds :)
+but_timeout_timer = 2 ; <-- delay between keystrokes, abstract value, I couldn't calculate the ratio to seconds :)
 thrust_position_number = 11
 brake_locomotive_position_number = 7
 brake_position_number = 11
@@ -126,7 +126,7 @@ but_timeout_flag = 0
 def butpress(reverse_raw=0, thrust_raw=0, brake_raw=0, brake_locomotive_raw=0, sand_raw=0, but_timeout_raw=0, selected_locomotive_number=1):
     # your code here...
 ```
-Example `Metrostroi.py` looks like:
+Value of the variable `locomotives_count` is needed for function `selecting()` which will provide `selected_locomotive_number` (from `1` to `inf.`) and your `butpress()` function should work with that variable for changing locomotives. Example `Metrostroi.py` looks like:
 ```
 from pynput.keyboard import Key, Controller
 import time
@@ -145,16 +145,18 @@ keyboard = Controller()
 
 def metrostroi_press(key, duration=0.25):
     keyboard.press(key)
-    time.sleep(duration)  # Metrostroi требует минимум ~0.1-0.2 секунды
+    time.sleep(duration)
     keyboard.release(key)
 
 def butpress(reverse_raw=0, thrust_raw=0, brake_raw=0, brake_locomotive_raw=0, sand_raw=0, but_timeout_raw=0, selected_locomotive_number=1):
     global reverse_data, brake_data, brake_locomotive_data, sand_data, thrust_data, but_timeout_flag, selected_locomotive, thrust_pos, brake_pos
     if selected_locomotive_number == 1:
+        # changing locomotive properties
         selected_locomotive = '81-717'
         thrust_pos = 6
         brake_pos = 6
     elif selected_locomotive_number == 2:
+        # changing locomotive properties here too
         selected_locomotive = '81-760'
         thrust_pos = 7
         brake_pos = 6
@@ -199,3 +201,23 @@ def butpress(reverse_raw=0, thrust_raw=0, brake_raw=0, brake_locomotive_raw=0, s
     else:
         keyboard.release(Key.space)
 ```
+# Display
+Display can:
+* Display `.bmp` photo, if the value of the variable `selected_locomotive` is equal to the name of the photo in the folder `Pictures` on ev3
+* Or display value of the variable `selected_locomotive` if script couldn't find the file `Pictures/{selected_locomotive}.bmp`
+* Display selected game profile name
+
+For example consider `Derail Valley.ini` again. In any case (in our example) value of the variable `selected_locomotive` will be equal to `DE2` because example contains only one locomotive.
+```
+[LOCOMOTIVES]
+locomotives_count = 1
+1 = DE2
+
+[DE2]
+...
+```
+And let's look inside folder `Pictures` in ev3 and find `DE2.bmp`:
+
+![DE2 art](/Pictures/DE2.bmp)
+
+If you run script with default configs you should see `DE2` on ev3 display (after connecting to PC). If you press `left` or `right` button, selected locomotive will change, and you will see another photo of locomotive except `DE2Microshunter` which doesn't have photo and display will show name of this locomotive.

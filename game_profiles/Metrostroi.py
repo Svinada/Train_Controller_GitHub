@@ -15,16 +15,18 @@ keyboard = Controller()
 
 def metrostroi_press(key, duration=0.25):
     keyboard.press(key)
-    time.sleep(duration)  # Metrostroi требует минимум ~0.1-0.2 секунды
+    time.sleep(duration)
     keyboard.release(key)
 
 def butpress(reverse_raw=0, thrust_raw=0, brake_raw=0, brake_locomotive_raw=0, sand_raw=0, but_timeout_raw=0, selected_locomotive_number=1):
     global reverse_data, brake_data, brake_locomotive_data, sand_data, thrust_data, but_timeout_flag, selected_locomotive, thrust_pos, brake_pos
     if selected_locomotive_number == 1:
+        # changing locomotive properties
         selected_locomotive = '81-717'
         thrust_pos = 6
         brake_pos = 6
     elif selected_locomotive_number == 2:
+        # changing locomotive properties here too
         selected_locomotive = '81-760'
         thrust_pos = 7
         brake_pos = 6
